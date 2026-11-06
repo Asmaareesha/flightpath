@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FlightPath: Flight Planning Simulator</title>
+<meta name="description" content="Plan a simulated flight: route, distance, time and fuel for nine aircraft types.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230e2740'/%3E%3Cpath d='M7 21Q16 8 25 12' fill='none' stroke='%23ff6b9d' stroke-width='2.5'/%3E%3C/svg%3E">
+<style>
+:root{--paper:#e8eef2;--card:#fbfcfd;--ink:#0e2740;--mut:#58708a;--line:#cbd7e1;--route:#c2185b;--sea:#d3e6f0;--acc:#0b5c8a;--ok:#1b7f55;--warn:#a86a00;--bad:#b3261e;--land:#eef2e8;--coast:#8aa3b8;--r:10px;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--paper:#0a1626;--card:#10233a;--ink:#e6eef7;--mut:#8ea6bf;--line:#223b57;--route:#ff6b9d;--sea:#0d2236;--land:#1b3a58;--coast:#4a6d90;--acc:#5cc0f2;--ok:#4cd6a0;--warn:#f2b84b;--bad:#ff8a80;color-scheme:dark}}
+*{box-sizing:border-box}html{scroll-padding-top:12px}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.top{display:flex;gap:24px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:16px clamp(16px,3vw,36px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink)}h1{font:600 24px "IBM Plex Serif",Georgia,serif;margin:0}
+.top p{margin:0;color:var(--mut);font-size:13px}
+.layout{display:grid;grid-template-columns:340px 1fr;gap:20px;padding:20px clamp(16px,3vw,36px);max-width:1500px;margin:auto;align-items:start}
+.panel,.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.panel{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+h2{font:600 18px "IBM Plex Serif",serif;margin:0 0 10px}h3{font-size:14px;margin:16px 0 6px;color:var(--acc);border-bottom:1px solid var(--line);padding-bottom:4px}
+label{display:block;font-size:13px;color:var(--mut);margin:8px 0 0}label output{float:right;color:var(--ink);font-weight:600}
+input,select{width:100%;margin-top:3px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);font:inherit}
+input[type=range]{padding:0;accent-color:var(--route)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.route{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:end}.route input{font-weight:600;letter-spacing:.04em}
+#swap{height:37px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:7px;cursor:pointer;font-size:16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}.chip{border:1px solid var(--line);background:none;color:var(--ink);border-radius:99px;padding:3px 10px;font:inherit;font-size:12px;cursor:pointer}.chip:hover{border-color:var(--route)}
+.go{width:100%;margin-top:16px;padding:11px;border:0;border-radius:8px;background:var(--route);color:#fff;font-family:inherit;font-weight:600;font-size:15px;cursor:pointer}.go:hover{filter:brightness(1.08)}
+.err{color:var(--bad);margin:8px 0 0;font-size:13px;min-height:1em}
+.out{display:grid;gap:16px;min-width:0}
+.verdict{display:flex;gap:14px;align-items:center;border-left:6px solid var(--ok);padding:14px 16px}.verdict.caution{border-color:var(--warn)}.verdict.nogo{border-color:var(--bad)}
+.verdict b{font:600 22px "IBM Plex Serif",serif}.verdict.go b{color:var(--ok)}.verdict.caution b{color:var(--warn)}.verdict.nogo b{color:var(--bad)}
+.verdict .path{font-size:18px;font-weight:600}.verdict small{display:block;color:var(--mut);font-weight:400;font-size:13px}.verdict .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}.btn:hover{border-color:var(--acc)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}.kpi{padding:14px 16px}.kpi b{display:block;font:600 28px "IBM Plex Serif",serif;line-height:1.1}.kpi span{color:var(--mut);font-size:13px}.kpi i{display:block;font-style:normal;font-size:12px;color:var(--mut);margin-top:2px}
+.card h3{margin-top:0;border:0;font-size:15px;color:var(--ink)}
+svg.map{width:100%;height:auto;display:block;border-radius:8px;background:var(--sea)}
+.scrub{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;margin:10px 0 6px}.scrub input{margin:0}
+.read{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}.read div{background:var(--paper);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--mut)}.read b{display:block;color:var(--ink);font-size:16px}
+.bar{display:flex;height:22px;border-radius:6px;overflow:hidden;margin:6px 0 12px}.bar i{display:block}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px 18px}.legend div{display:flex;gap:8px;align-items:center;font-size:14px;border-bottom:1px solid var(--line);padding:4px 0}.legend s{width:12px;height:12px;border-radius:3px}.legend em{margin-left:auto;font-style:normal;font-weight:600}.legend small{color:var(--mut)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.meter{margin:9px 0;font-size:13px}.meter div{display:flex;justify-content:space-between}.meter span{color:var(--mut)}.meter u{display:block;height:7px;background:var(--paper);border-radius:4px;margin-top:3px;overflow:hidden;text-decoration:none}.meter u i{display:block;height:100%;background:var(--acc)}.meter.warn u i{background:var(--warn)}.meter.bad u i{background:var(--bad)}
+.checks{list-style:none;margin:0;padding:0}.checks li{padding:5px 0 5px 26px;position:relative;font-size:14px;border-bottom:1px solid var(--line)}.checks li:before{position:absolute;left:0;font-weight:700}.checks .ok:before{content:"✓";color:var(--ok)}.checks .warn:before{content:"!";color:var(--warn)}.checks .bad:before{content:"✕";color:var(--bad)}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}th:first-child,td:first-child{text-align:left}th{color:var(--mut);font-weight:500}tr.mk td{color:var(--route);font-weight:600}
+footer strong{color:var(--ink);font-size:14px}.viarow{display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:3px}.viarow input{margin:0}.hint{font-size:12px;color:var(--mut);margin:4px 0 0}#vias{margin-top:6px}
+footer{text-align:center;color:var(--mut);font-size:12px;padding:20px}
+@media(max-width:940px){.layout{grid-template-columns:1fr}.panel{position:static;max-height:none}.grid2{grid-template-columns:1fr}.verdict{flex-wrap:wrap}.verdict .acts{margin:0}}
+@media print{.panel,.acts,.scrub,footer,.top p{display:none}.layout{display:block}body{background:#fff}}
+
+</style></head>
+<body>
+<header class="top"><div class="brand"><svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 22Q16 6 27 12" fill="none" stroke="#c2185b" stroke-width="2" stroke-dasharray="3 2.5"/><path d="M24 8l5 3-6 3z" fill="#c2185b"/></svg><h1>FlightPath</h1></div>
+<p>Flight planning simulator. For learning and entertainment only, never for real navigation.</p></header>
+<main class="layout">
+<form id="f" class="panel" autocomplete="off">
+ <h2>Plan a flight</h2>
+ <div class="chips" id="presets"></div>
+ <div class="route"><label>From<input id="dep" list="apl" value="LROP" required></label><button type="button" id="swap" title="Swap airports" aria-label="Swap airports">⇄</button><label>To<input id="dest" list="apl" value="EGLL" required></label></div>
+ <label>Alternate (optional)<input id="alt" list="apl" value="EGKK"></label>
+ <label>Via waypoints (optional)</label><div class="viarow"><input id="viain" placeholder="Airport code or 45.5/20.1" aria-label="Waypoint"><button type="button" id="viaadd" class="btn">Add</button></div>
+ <div class="chips" id="vias"></div><p class="hint">You can also click the map to drop a waypoint. It is inserted where it adds the least distance.</p>
+ <datalist id="apl"></datalist>
+ <label>Aircraft<select id="ac"></select></label>
+ <div class="two"><label>Cruise level (FL)<input id="fl" type="number" min="100" max="450" step="10" value="370"></label>
+ <label>Departure (UTC)<input id="etd" type="time" value="08:00"></label></div>
+ <label>Passenger load <output id="lfv">82%</output><input id="lf" type="range" min="0" max="100" value="82"></label>
+ <div class="two"><label>Cargo (kg)<input id="cargo" type="number" min="0" step="100" value="1000"></label>
+ <label>Taxi time (min)<input id="tx" type="number" min="0" max="90" value="20"></label></div>
+ <h3>Conditions</h3>
+ <div class="two"><label>Wind from (°)<input id="wd" type="number" min="0" max="360" value="270"></label>
+ <label>Wind speed (kt)<input id="ws" type="number" min="0" max="200" value="25"></label></div>
+ <label>Temperature vs standard <output id="isav">ISA +0°C</output><input id="isa" type="range" min="-20" max="30" value="0"></label>
+ <label>Routing<select id="rt"></select></label>
+ <h3>Fuel policy</h3>
+ <div class="two"><label>Contingency<select id="ct"><option value="0">None</option><option value="3">3%</option><option value="5" selected>5%</option><option value="10">10%</option></select></label>
+ <label>Extra fuel (kg)<input id="ex" type="number" min="0" step="100" value="0"></label></div>
+ <button class="go" type="submit">Calculate flight plan</button>
+ <p id="err" class="err" role="alert"></p>
+</form>
+<section id="out" class="out" aria-live="polite"></section>
+</main>
+<footer><strong>Made by Asma Areesha Hanifi</strong><br>Performance figures are approximations of public data and a simplified model. Open source, MIT licensed.</footer>
+<script>
+// Airports: [ICAO, IATA, name, city, lat, lon]
+const AIRPORTS=[["KJFK","JFK","John F. Kennedy Intl","New York",40.6398,-73.7789],["KLAX","LAX","Los Angeles Intl","Los Angeles",33.9425,-118.4081],["KORD","ORD","O'Hare Intl","Chicago",41.9742,-87.9073],["KATL","ATL","Hartsfield-Jackson","Atlanta",33.6407,-84.4277],["KSFO","SFO","San Francisco Intl","San Francisco",37.6213,-122.379],["KMIA","MIA","Miami Intl","Miami",25.7959,-80.287],["KDFW","DFW","Dallas/Fort Worth","Dallas",32.8998,-97.0403],["KSEA","SEA","Seattle-Tacoma","Seattle",47.4502,-122.3088],["PHNL","HNL","Daniel K. Inouye","Honolulu",21.3187,-157.9225],["CYYZ","YYZ","Toronto Pearson","Toronto",43.6777,-79.6248],["CYUL","YUL","Montréal-Trudeau","Montréal",45.4706,-73.7408],["CYVR","YVR","Vancouver Intl","Vancouver",49.1967,-123.1815],["MMMX","MEX","Benito Juárez","Mexico City",19.4363,-99.0721],["SBGR","GRU","Guarulhos","São Paulo",-23.4356,-46.4731],["SCEL","SCL","Arturo Merino Benítez","Santiago",-33.393,-70.7858],["EGLL","LHR","Heathrow","London",51.47,-0.4543],["EGKK","LGW","Gatwick","London",51.1537,-0.1821],["LFPG","CDG","Charles de Gaulle","Paris",49.0097,2.5479],["EDDF","FRA","Frankfurt","Frankfurt",50.0379,8.5622],["EHAM","AMS","Schiphol","Amsterdam",52.3105,4.7683],["LEMD","MAD","Barajas","Madrid",40.4983,-3.5676],["LIRF","FCO","Fiumicino","Rome",41.8003,12.2389],["LTFM","IST","Istanbul Airport","Istanbul",41.2753,28.7519],["LROP","OTP","Henri Coandă","Bucharest",44.5711,26.0858],["LSZH","ZRH","Zürich","Zürich",47.4647,8.5492],["ENGM","OSL","Gardermoen","Oslo",60.1976,11.1004],["BIKF","KEF","Keflavík","Reykjavik",63.985,-22.6056],["OMDB","DXB","Dubai Intl","Dubai",25.2532,55.3657],["OTHH","DOH","Hamad Intl","Doha",25.2731,51.6081],["VIDP","DEL","Indira Gandhi Intl","Delhi",28.5562,77.1],["VHHH","HKG","Hong Kong Intl","Hong Kong",22.308,113.9185],["WSSS","SIN","Changi","Singapore",1.3644,103.9915],["RJTT","HND","Haneda","Tokyo",35.5494,139.7798],["RKSI","ICN","Incheon","Seoul",37.4602,126.4407],["ZBAA","PEK","Beijing Capital","Beijing",40.0799,116.6031],["YSSY","SYD","Kingsford Smith","Sydney",-33.9399,151.1753],["NZAA","AKL","Auckland","Auckland",-37.0082,174.7917],["FAOR","JNB","O.R. Tambo","Johannesburg",-26.1392,28.246],["HECA","CAI","Cairo Intl","Cairo",30.1219,31.4056],["HKJK","NBO","Jomo Kenyatta","Nairobi",-1.3192,36.9278]
+,["KBOS", "BOS", "Logan Intl", "Boston", 42.3656, -71.0096],["KIAD", "IAD", "Dulles Intl", "Washington", 38.9531, -77.4565],["KDEN", "DEN", "Denver Intl", "Denver", 39.8561, -104.6737],["KLAS", "LAS", "Harry Reid Intl", "Las Vegas", 36.084, -115.1537],["KPHX", "PHX", "Sky Harbor", "Phoenix", 33.4373, -112.0078],["KIAH", "IAH", "Bush Intercontinental", "Houston", 29.9902, -95.3368],["KMSP", "MSP", "Minneapolis-St Paul", "Minneapolis", 44.8848, -93.2223],["KDTW", "DTW", "Detroit Metro", "Detroit", 42.2162, -83.3554],["PANC", "ANC", "Ted Stevens Intl", "Anchorage", 61.1743, -149.9962],["CYYC", "YYC", "Calgary Intl", "Calgary", 51.1215, -114.0076],["MPTO", "PTY", "Tocumen Intl", "Panama City", 9.0714, -79.3835],["SKBO", "BOG", "El Dorado", "Bogotá", 4.7016, -74.1469],["SPJC", "LIM", "Jorge Chávez", "Lima", -12.0219, -77.1143],["SAEZ", "EZE", "Ezeiza", "Buenos Aires", -34.8222, -58.5358],["SBGL", "GIG", "Galeão", "Rio de Janeiro", -22.81, -43.2506],["EIDW", "DUB", "Dublin", "Dublin", 53.4213, -6.2701],["EGPF", "GLA", "Glasgow", "Glasgow", 55.8719, -4.4331],["EGCC", "MAN", "Manchester", "Manchester", 53.3537, -2.275],["EBBR", "BRU", "Brussels", "Brussels", 50.9014, 4.4844],["EDDM", "MUC", "Munich", "Munich", 48.3538, 11.7861],["EDDB", "BER", "Brandenburg", "Berlin", 52.3667, 13.5033],["LOWW", "VIE", "Vienna Intl", "Vienna", 48.1103, 16.5697],["LKPR", "PRG", "Václav Havel", "Prague", 50.1008, 14.26],["EPWA", "WAW", "Chopin", "Warsaw", 52.1657, 20.9671],["LHBP", "BUD", "Ferenc Liszt", "Budapest", 47.4369, 19.2556],["LGAV", "ATH", "Eleftherios Venizelos", "Athens", 37.9364, 23.9445],["LPPT", "LIS", "Humberto Delgado", "Lisbon", 38.7813, -9.1359],["LEBL", "BCN", "El Prat", "Barcelona", 41.2974, 2.0833],["LIMC", "MXP", "Malpensa", "Milan", 45.6306, 8.7281],["LFMN", "NCE", "Côte d'Azur", "Nice", 43.6584, 7.2159],["EKCH", "CPH", "Kastrup", "Copenhagen", 55.618, 12.656],["ESSA", "ARN", "Arlanda", "Stockholm", 59.6519, 17.9186],["EFHK", "HEL", "Helsinki-Vantaa", "Helsinki", 60.3172, 24.9633],["UUEE", "SVO", "Sheremetyevo", "Moscow", 55.9726, 37.4146],["LBSF", "SOF", "Sofia", "Sofia", 42.6967, 23.4114],["LYBE", "BEG", "Nikola Tesla", "Belgrade", 44.8184, 20.3091],["LDZA", "ZAG", "Zagreb", "Zagreb", 45.7429, 16.0688],["LCLK", "LCA", "Larnaca", "Larnaca", 34.8751, 33.6249],["LLBG", "TLV", "Ben Gurion", "Tel Aviv", 32.0114, 34.8867],["OEJN", "JED", "King Abdulaziz", "Jeddah", 21.6796, 39.1565],["OERK", "RUH", "King Khalid", "Riyadh", 24.9576, 46.6988],["OMAA", "AUH", "Zayed Intl", "Abu Dhabi", 24.433, 54.6511],["OPKC", "KHI", "Jinnah Intl", "Karachi", 24.9065, 67.1608],["VABB", "BOM", "Chhatrapati Shivaji", "Mumbai", 19.0896, 72.8656],["VOBL", "BLR", "Kempegowda", "Bengaluru", 13.1979, 77.7063],["VTBS", "BKK", "Suvarnabhumi", "Bangkok", 13.69, 100.7501],["WMKK", "KUL", "Kuala Lumpur Intl", "Kuala Lumpur", 2.7456, 101.7099],["WIII", "CGK", "Soekarno-Hatta", "Jakarta", -6.1256, 106.6559],["RPLL", "MNL", "Ninoy Aquino", "Manila", 14.5086, 121.0194],["ZSPD", "PVG", "Pudong", "Shanghai", 31.1443, 121.8083],["ZGGG", "CAN", "Baiyun", "Guangzhou", 23.3924, 113.2988],["RCTP", "TPE", "Taoyuan", "Taipei", 25.0777, 121.2328],["RJAA", "NRT", "Narita", "Tokyo", 35.772, 140.3929],["RJBB", "KIX", "Kansai", "Osaka", 34.4273, 135.2444],["YMML", "MEL", "Tullamarine", "Melbourne", -37.6733, 144.8433],["YBBN", "BNE", "Brisbane", "Brisbane", -27.3842, 153.1175],["YPPH", "PER", "Perth", "Perth", -31.9385, 115.9672],["NZWN", "WLG", "Wellington", "Wellington", -41.3272, 174.8053],["GMMN", "CMN", "Mohammed V", "Casablanca", 33.3675, -7.5899],["DTTA", "TUN", "Tunis-Carthage", "Tunis", 36.851, 10.2272],["DNMM", "LOS", "Murtala Muhammed", "Lagos", 6.5774, 3.3212],["HAAB", "ADD", "Bole Intl", "Addis Ababa", 8.9779, 38.7993],["FACT", "CPT", "Cape Town Intl", "Cape Town", -33.9715, 18.6021],["FIMP", "MRU", "Sir Seewoosagur Ramgoolam", "Mauritius", -20.43, 57.6836]].map(([icao,iata,name,city,lat,lon])=>({icao,iata,name,city,lat,lon}));
+
+// Approximate public-domain figures, simplified performance model. tas=kt cruise, burn=kg/h at 85% MTOW, climb/desc=avg fpm, fl=max certified FL
+const AIRCRAFT=[
+{id:"at72",name:"ATR 72-600",tas:275,burn:640,mtow:23000,oew:13500,mlw:22350,fuel:5000,seats:70,fl:250,climb:1200,desc:1500},
+{id:"e175",name:"Embraer E175",tas:430,burn:1700,mtow:40370,oew:21800,mlw:34000,fuel:9300,seats:78,fl:410,climb:2200,desc:2000},
+{id:"a320",name:"Airbus A320neo",tas:447,burn:2400,mtow:79000,oew:44300,mlw:67400,fuel:19000,seats:180,fl:390,climb:2000,desc:1800},
+{id:"b738",name:"Boeing 737-800",tas:450,burn:2450,mtow:79000,oew:41400,mlw:65300,fuel:20800,seats:189,fl:410,climb:2000,desc:1800},
+{id:"a333",name:"Airbus A330-300",tas:470,burn:5800,mtow:242000,oew:129000,mlw:187000,fuel:78000,seats:300,fl:410,climb:1800,desc:1800},
+{id:"b789",name:"Boeing 787-9",tas:488,burn:5400,mtow:254000,oew:128850,mlw:192800,fuel:101000,seats:290,fl:430,climb:1800,desc:1800},
+{id:"a359",name:"Airbus A350-900",tas:488,burn:5900,mtow:280000,oew:142400,mlw:207000,fuel:111000,seats:325,fl:410,climb:1800,desc:1800},
+{id:"b77w",name:"Boeing 777-300ER",tas:490,burn:7500,mtow:351500,oew:167800,mlw:251300,fuel:145500,seats:396,fl:430,climb:1800,desc:1800},
+{id:"a388",name:"Airbus A380-800",tas:488,burn:11500,mtow:575000,oew:277000,mlw:391000,fuel:254000,seats:500,fl:430,climb:1500,desc:1800}];
+
+const ROUTING=[["Direct (great circle)",0,0],["Typical airways (+3%)",.03,15],["Congested or weather (+6%)",.06,25]];
+
+const PRESETS=[
+{n:"Bucharest to London",dep:"LROP",dest:"EGLL",alt:"EGKK",ac:"a320",fl:370,lf:82,wd:270,ws:25},
+{n:"New York to London",dep:"KJFK",dest:"EGLL",alt:"EGKK",ac:"b77w",fl:370,lf:85,wd:280,ws:60},
+{n:"Los Angeles to Sydney",dep:"KLAX",dest:"YSSY",alt:"",ac:"a359",fl:390,lf:75,wd:0,ws:0},
+{n:"Singapore to London",dep:"WSSS",dest:"EGLL",alt:"EGKK",ac:"a388",fl:390,lf:80,wd:270,ws:30},
+{n:"Frankfurt to Dubai via Istanbul",dep:"EDDF",dest:"OMDB",alt:"OMAA",via:["LTFM"],ac:"a333",fl:370,lf:80,wd:270,ws:20},
+{n:"Amsterdam to Madrid",dep:"EHAM",dest:"LEMD",alt:"",ac:"e175",fl:360,lf:90,wd:0,ws:0}];
+
+// Low-resolution coastlines as flat [lat,lon,lat,lon,...] polygons (hand-simplified, for orientation only)
+const LAND=[
+// North America
+[71.4,-156.5,70,-142,69,-125,68,-108,70,-98,68,-90,69.5,-82,66,-86,63,-90,60,-94,57,-92,55,-83,52,-80,55,-77,58,-78,62,-78,62.5,-73,60,-70,58,-68,56,-62,53,-56,50,-60,48.5,-65,47,-70,48.5,-64.5,46,-60,44,-65.5,45,-67,43.5,-70,41.5,-70,41,-73.8,39,-74.5,37,-76,35,-75.5,33,-79,30.5,-81.3,27,-80,25.2,-80.4,26,-82,29,-83,30,-85.5,29.2,-89.5,29.5,-94,27,-97.4,22,-97.8,19,-96,18.5,-92,21,-90,21,-87,18,-88,16,-88.5,15.8,-84,12,-83.5,9,-82,9,-79,8,-77.5,8,-80,7.3,-80.5,8,-83,10,-85.7,13,-87.5,13.5,-90.5,15.5,-94,16,-98,18,-103,20,-105.5,23,-106,25,-109.5,28,-112,31,-114.7,28,-112.8,26,-111.5,23,-109.5,23,-110,25.5,-112.2,27.5,-114.5,30,-116,32.5,-117.2,34,-119,34.5,-120.6,36.6,-121.9,38,-123,40.4,-124.4,43,-124.5,46.2,-124,48.4,-124.7,49.5,-126,51,-127.8,54,-130.5,56,-133,58,-136.5,60,-141,59.8,-144,60.5,-148,59,-151.5,60,-153,58,-157,56,-160,58.8,-157.5,60,-162,62,-165,64.5,-166,65.5,-168,68,-166,70,-162],
+// South America
+[8,-77.5,11,-74.5,12,-71.5,10.7,-68,10.5,-64,10,-61.5,8.5,-60,6.5,-58,5,-52,2,-50,0,-50,-1,-48,-2.5,-44,-3,-40,-5,-35.2,-8,-34.8,-13,-38.5,-18,-39.5,-23,-41.8,-23.5,-45,-26,-48.5,-29,-49.8,-32,-52.2,-34.5,-54,-35,-57,-38,-57.5,-39,-62,-41,-65,-43.5,-65.3,-46,-67.5,-49.5,-67.8,-52,-69,-55,-68,-54,-72,-50,-75.5,-46,-75.5,-42,-73.7,-37,-73.5,-33,-71.6,-27,-70.8,-23,-70.4,-18.5,-70.3,-15,-75.2,-12,-77,-8,-79.3,-5,-81.2,-2,-80.8,0.5,-80,3.8,-77.3,7,-77.8],
+// Africa
+[37,10,36.8,3,35.5,-1,35.8,-5.9,33,-8,30,-9.8,27.5,-13,24,-16,21,-17,16,-16.5,12.5,-16.8,9,-13.5,6,-10.5,4.5,-7.5,5,-2,4.5,2,6.4,3.4,4.3,6.5,4,9,1,9.5,-4,11,-8.5,13,-12.5,13.7,-17,11.8,-22,14.4,-26.5,15,-29,16.5,-32,18,-34.5,19.5,-34,26,-31,30,-28,32.7,-25,35,-22,35.5,-19,34.8,-15.5,40.5,-11,40.5,-6,39,-1,41,2,45.5,5,48,10.5,51.2,12,51,11.5,43.2,13,42.5,16,40,20,37.2,24,35.5,28,33.5,30,32.5,31.2,32,31.5,30,31,25,32.7,22,31,19.5,30.3,19,32,15,33,12,32.8,10.5,34,10.5,36,10.5],
+// Eurasia
+[37,-9,39,-9.5,43,-9,43.5,-2,46,-1.2,48.5,-4.7,48.7,-1.5,49.7,-1.2,51,2,53,4.7,55,8.5,57,8.5,57.5,10.5,54.8,10,54,13.5,54.5,18.5,56,21,58,22,59.4,24,60,27.5,60,22.5,63,21,65.7,24,65.7,22,62,17.5,60.5,17.5,59,18.5,58,16.5,56.2,16,55.4,13,56.5,12.5,58.5,11,59.9,10.5,58,6.5,59,5.5,62,5,64,10,67,13.5,69.5,18,70.8,24,71,28.5,69.7,31,69.5,33,67.5,41,68,44,68.5,53,69,60,72,69,73,80,75.5,95,77,104,74,112,73,128,71.5,140,69.8,160,69,170,66,180,64.5,177,62,175,60,170,59.5,163,56,162.5,51,156.7,53,155.8,56,155.5,59.5,154,59.3,143,54,140,53,141,49,140,47,138,43,132,40,129.7,38,128.5,35.2,129.2,34.7,126.5,37,126.5,38,125,39.5,124.5,39,121.5,40.5,121.5,39,118,37.5,119,37,122.5,35,119.3,32,121.8,30,122.2,27,120.5,23.5,117.5,22,114,21.5,110,21,108,19,105.7,16,108,12,109.3,10,107,8.7,105,10,104.5,12.5,100,13.5,100.5,9,100,4,101,1.5,103.5,2.5,101.5,6,100.3,9,98.5,13,98,16,97.5,16.5,94.5,20,93,22,91.5,21.5,88,19.5,85,16.5,82.2,13.5,80.3,10,79.8,8,77.5,10,76,14.5,74,19,72.8,22,69,24,67,25.2,62,25.5,57,27,56,28.5,51.5,30,48.5,28.5,48,26,50.2,24.2,52,24,54.5,25.5,56.3,23.5,58.7,22.5,59.8,19,57.8,16.5,53,14,48,12.8,45,13,43.2,16,42.7,21,39,25.5,37,28,34.8,30,32.6,31.2,34.2,33.5,35.2,36.5,35.9,36.2,30,36.7,28,38.5,26.5,40,26.2,40.8,22.8,38,24,36.5,23,37.5,21.5,39.5,20,41.5,19.5,42.5,18.5,45,14,45.5,13.5,44,12.5,43.5,13.8,42,15.3,40.5,18.5,39.8,16.5,38,16,38,15.7,40,15.5,41.2,13,42.5,11,44,10,44.4,8.5,43.5,7,43.2,3.5,41.5,2.5,40.5,0.5,38.7,0,37.5,-1.5,36.7,-4.5,36,-5.5,37,-7.4],
+// Australia, Tasmania, New Zealand
+[-10.7,142.5,-12,141.7,-14.8,141.5,-17.5,140.8,-17,139.5,-12.2,136.8,-11.2,132.5,-14.5,129.5,-15,125,-18,122,-22,114,-26,113.4,-30,115,-34.3,115,-35,118,-34,123.5,-32,128,-31.7,131,-34,135.5,-35.5,138,-38,140.5,-38.5,146.5,-37.5,150,-33.8,151.3,-28.5,153.6,-24,151.8,-20,148.7,-16.5,145.5,-14,143.8],
+[-40.7,144.7,-41,148.3,-43.5,147,-43.5,146.2,-41,145.2],
+[-34.4,173,-36.5,175.3,-39,177,-41.6,175.1,-39.5,173.8,-37,174.5],
+[-40.6,172.8,-41.8,174.3,-44.5,171.5,-46.5,169.3,-46.4,167.5,-44,168,-42,171.5],
+// Greenland, Iceland, British Isles, Newfoundland
+[83.5,-30,82,-20,76,-18,72,-22,69,-25,66,-35,62,-42,59.8,-43.8,61,-48,64,-51.5,67,-53.5,70,-54,74,-58,76.5,-68,78,-73,82,-62,83.5,-40],
+[66.5,-22.5,65.6,-14.5,64.2,-14,63.4,-19,64,-22.5,65.5,-24],
+[58.6,-5,57.5,-1.8,56,-2.8,55,-1.5,53.5,0.2,52.7,1.7,51.2,1.4,50.7,0.3,50.5,-3.5,50,-5.2,51.5,-4.5,51.7,-5.2,53.3,-4.5,54.5,-3.5,55.5,-4.8,56.5,-6,58,-5.5],
+[55.2,-7.3,54,-6,52.2,-6.3,51.6,-9.5,53,-10,54.3,-9.9],
+[51.5,-55.7,49,-53,47.5,-52.7,47.6,-59.3,49.5,-57.5],
+// Asia-Pacific islands
+[41.4,141.4,39,141.9,35.7,140.8,34.6,138.8,34.3,136,33.5,135.8,34.3,133,34,131,35.5,133,36.8,136.7,38.5,139.5,40.5,140],
+[45.5,141.9,43.3,145.5,42,143.3,41.8,140.5,43.2,140.3],[33.9,131,32,132,31,130.7,32.5,129.8,33.5,129.8],
+[25.2,121.5,23,121.4,22,120.8,24.5,120.6],[18.5,121,16,122,14,124,13.5,121,16,119.8],[9.5,123.5,9,126.3,6,126.5,6.8,122,8.5,123.5],
+[7,117,4.5,118.3,1,119,-2,116.5,-4,114.5,-3,111.5,-1,109.2,1.5,109.2,4,111.5,6.5,116.5],
+[5.6,95.3,3.5,98.7,0,103.5,-3,106.2,-5.9,105.8,-4,102,-1,100.3,2,97.5],[-6,105.5,-6,108.5,-6.9,111,-7.7,114.5,-8.7,114.5,-8,110,-7.8,106],
+[-2.5,141,-0.8,133.5,-2.7,132,-3.5,133.5,-4,138,-8,138.5,-8,141,-9,143.5,-10.5,150.5,-8,148,-6,147.5,-4,144],
+[9.8,80.2,7,81.8,6,80.5,7.5,79.8],[-12,49.3,-15,50.5,-19,49,-23,47.5,-25.5,45,-24,43.5,-21,43.7,-17,44,-15.5,46.3],
+[23,-83,23,-81,21.5,-77.5,20,-74.2,20,-77,22,-84],[19.8,-73.5,19.8,-70,18.5,-68.4,17.8,-71.5,18.2,-74.3]];
+
+// FlightPath calculation engine (pure functions, no DOM)
+const FP=(()=>{
+const R=3440.065,rad=d=>d*Math.PI/180,deg=r=>r*180/Math.PI;
+const dist=(a,b)=>{const f1=rad(a.lat),f2=rad(b.lat),h=Math.sin((f2-f1)/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(rad(b.lon-a.lon)/2)**2;return 2*R*Math.asin(Math.min(1,Math.sqrt(h)))};
+const brg=(a,b)=>{const f1=rad(a.lat),f2=rad(b.lat),dl=rad(b.lon-a.lon);return(deg(Math.atan2(Math.sin(dl)*Math.cos(f2),Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl)))+360)%360};
+const mid=(a,b,f)=>{const d=dist(a,b)/R;if(d<1e-9)return{lat:a.lat,lon:a.lon};const A=Math.sin((1-f)*d)/Math.sin(d),B=Math.sin(f*d)/Math.sin(d),c=(p,q)=>Math.cos(rad(p.lat))*Math[q](rad(p.lon));
+const x=A*c(a,'cos')+B*c(b,'cos'),y=A*c(a,'sin')+B*c(b,'sin'),z=A*Math.sin(rad(a.lat))+B*Math.sin(rad(b.lat));return{lat:deg(Math.atan2(z,Math.hypot(x,y))),lon:deg(Math.atan2(y,x))}};
+// ISA temperature (K) at flight level + deviation
+const isaT=(fl,d)=>{const h=fl*30.48;return(h<11000?288.15-.0065*h:216.65)+d};
+const optFL=ac=>Math.round((ac.fl-20)/10)*10;
+const tasAt=(ac,fl,isa)=>ac.tas*Math.sqrt(isaT(fl,isa)/isaT(fl,0))*(.8+.2*Math.min(1,fl/optFL(ac)));
+// fuel flow kg/h: scales with weight, off-optimum altitude penalty, ISA deviation
+const rate=(ac,w,fl,isa)=>ac.burn*(w/(.85*ac.mtow))*(1+.012*Math.abs(fl-optFL(ac))/10)*(1+(isa>0?.005:.002)*isa);
+const hold=(ac,w)=>rate(ac,w,optFL(ac),0)*.8*.5; // 30 min holding
+
+// One flight leg computed backwards from the landing weight, so burn reflects the weight actually flown
+function leg(ac,D,wEnd,fl,isa,hw){
+ let f=fl,tas,tc,td,dc,dd,cd;
+ for(let i=0;i<60;i++){tas=tasAt(ac,f,isa);tc=f*100/ac.climb/60;td=f*100/ac.desc/60;
+  dc=Math.max(0,tc*(.7*tas-hw));dd=Math.max(0,td*(.8*tas-hw));cd=D-dc-dd;if(cd>=0||f<=30)break;f=Math.max(30,Math.floor(f*.9/10)*10)}
+ cd=Math.max(cd,0);const gs=Math.max(60,tas-hw),n=12,sd=cd/n,steps=[];let w=wEnd;
+ const fd=rate(ac,w,f,isa)*.35*td;steps.push({k:'descent',d:dd,t:td,fuel:fd,alt:0});w+=fd;
+ for(let i=0;i<n;i++){const t=sd/gs;let b=rate(ac,w,f,isa)*t;b=rate(ac,w+b/2,f,isa)*t;steps.push({k:'cruise',d:sd,t,fuel:b,alt:f*100});w+=b}
+ const fc=rate(ac,w*1.02,f,isa)*1.9*tc;steps.push({k:'climb',d:dc,t:tc,fuel:fc,alt:f*100});
+ steps.reverse();return{fuel:w+fc-wEnd,time:steps.reduce((s,x)=>s+x.t,0),fl:f,dc,dd,cd,tas,gs,steps}}
+
+function core(q,D){
+ const{ac,isa}=q,zfw=ac.oew+q.pax*95+q.cargo,final=hold(ac,zfw+q.extra);
+ const altF=q.altD>0?leg(ac,q.altD,zfw+final+q.extra,Math.min(q.fl,ac.fl>=300?250:ac.fl),isa,0).fuel:0;
+ const wLand=zfw+final+altF+q.extra,trip=leg(ac,D,wLand,q.fl,isa,q.hw);
+ const cont=trip.fuel*q.cont/100,taxi=ac.burn*.28*q.taxi/60,tow=zfw+trip.fuel+cont+altF+final+q.extra;
+ return{zfw,final,altF,trip,cont,taxi,tow,block:tow-zfw+taxi,lw:tow-trip.fuel,extra:q.extra}}
+
+function plan(o){
+ const{ac,dep,dest,altA}=o,fl=Math.min(o.fl,ac.fl),checks=[];
+ const fx=[dep,...(o.via||[]),dest],legs=[];let gcd=0;
+ for(let i=1;i<fx.length;i++){const a=fx[i-1],b=fx[i],d=dist(a,b);legs.push({a,b,d,crs:brg(a,b),mc:brg(mid(a,b,.5),b)});gcd+=d}
+ const D=gcd*(1+o.rf)+o.term,crs=legs[0].crs,fin=(brg(dest,fx.at(-2))+180)%360;
+ const hw=legs.reduce((s,l)=>s+l.d*o.ws*Math.cos(rad(o.wd-l.mc)),0)/gcd;
+ const pos=f=>{let t=f*gcd;for(const l of legs){if(t<=l.d||l===legs.at(-1))return mid(l.a,l.b,l.d?Math.min(1,t/l.d):0);t-=l.d}};
+ const pax=Math.round(ac.seats*o.lf/100);
+ const q={ac,isa:o.isa,fl,hw,pax,cargo:o.cargo,extra:o.extra,cont:o.cont,taxi:o.taxi,altD:altA?dist(dest,altA)*1.05+10:0};
+ const c=core(q,D);let lo=100,hi=10000;
+ for(let i=0;i<18;i++){const m=(lo+hi)/2,x=core(q,m);(x.tow<=ac.mtow&&x.block<=ac.fuel)?lo=m:hi=m}
+ const t=c.trip,tl=[{d:0,t:0,alt:0,used:0,k:'climb'}];let d=0,h=0,u=0;
+ for(const s of t.steps){d+=s.d;h+=s.t;u+=s.fuel;tl.push({d,t:h,alt:s.alt*(s.k==='descent'?0:1),used:u,k:s.k})}
+ const ok=(l,m)=>checks.push({l,m});
+ if(o.fl>ac.fl)ok('warn',`FL${o.fl} exceeds the ${ac.name} ceiling. Planned at FL${ac.fl}.`);
+ if(t.fl<fl)ok('warn',`Short sector: cruise altitude reduced to FL${t.fl} so the climb and descent fit.`);
+ ok(c.tow>ac.mtow?'bad':'ok',`Takeoff weight ${Math.round(c.tow).toLocaleString()} kg against a limit of ${ac.mtow.toLocaleString()} kg.`);
+ ok(c.block>ac.fuel?'bad':'ok',`Block fuel ${Math.round(c.block).toLocaleString()} kg against a tank capacity of ${ac.fuel.toLocaleString()} kg.`);
+ ok(c.lw>ac.mlw?'warn':'ok',c.lw>ac.mlw?`Planned landing weight exceeds the ${ac.mlw.toLocaleString()} kg limit. Reduce payload or fuel.`:`Planned landing weight is within the ${ac.mlw.toLocaleString()} kg limit.`);
+ ok(D>lo?'bad':'ok',`Maximum range at this payload is about ${Math.round(lo)>=9990?'10,000+':Math.round(lo).toLocaleString()} NM against ${Math.round(D).toLocaleString()} NM planned.`);
+ if(Math.abs(hw)>=60)ok('warn',`Strong ${hw>0?'headwind':'tailwind'} component of ${Math.abs(Math.round(hw))} kt. Check winds aloft before departure.`);
+ if(o.altA===null||!altA)ok('warn','No alternate selected. Alternate fuel is not included.');
+ const st=checks.some(x=>x.l==='bad')?'nogo':checks.some(x=>x.l==='warn')?'caution':'go';
+ return{o,dep,dest,altA,ac,legs,pos,fl:t.fl,gcd,D,crs,fin,hw,pax,payload:pax*95+o.cargo,c,maxRange:lo,tl,tas:t.tas,gs:t.gs,
+  air:t.time,block:t.time+o.taxi/60,co2:(t.fuel+c.taxi)*3.16,altD:q.altD,checks,status:st}}
+
+const at=(tl,key,v)=>{const i=tl.findIndex(p=>p[key]>=v);if(i<0)return{...tl[tl.length-1]};if(i===0)return{...tl[0]};
+ const a=tl[i-1],b=tl[i],f=b[key]===a[key]?0:(v-a[key])/(b[key]-a[key]),r={k:b.k};for(const x of['d','t','alt','used'])r[x]=a[x]+(b[x]-a[x])*f;return r};
+return{plan,at,mid,brg,dist}})();
+
+(()=>{
+const $=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0'),NS='http://www.w3.org/2000/svg';
+const fmt=(n,d=0)=>Number(n).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
+const hm=h=>{const m=Math.round(h*60);return `${Math.floor(m/60)}h ${pad(m%60)}m`};
+const ll=p=>`${Math.abs(p.lat).toFixed(2)}°${p.lat<0?'S':'N'} ${Math.abs(p.lon).toFixed(2)}°${p.lon<0?'W':'E'}`;
+const clock=m=>{m=Math.round(m);return `${pad(Math.floor(m/60)%24)}:${pad(m%60)}`+(m>=1440?` +${Math.floor(m/1440)}d`:'')};
+const code=c=>AIRPORTS.find(a=>a.icao===c.trim().toUpperCase()||a.iata===c.trim().toUpperCase());
+$('#apl').innerHTML=AIRPORTS.map(a=>`<option value="${a.icao}">${a.iata}, ${a.name}, ${a.city}</option>`).join('');
+$('#ac').innerHTML=AIRCRAFT.map(a=>`<option value="${a.id}"${a.id==='a320'?' selected':''}>${a.name}</option>`).join('');
+$('#rt').innerHTML=ROUTING.map((r,i)=>`<option value="${i}"${i===1?' selected':''}>${r[0]}</option>`).join('');
+$('#presets').innerHTML=PRESETS.map((p,i)=>`<button type="button" class="chip" data-i="${i}">${p.n}</button>`).join('');
+const sync=()=>{$('#lfv').textContent=$('#lf').value+'%';const v=+$('#isa').value;$('#isav').textContent='ISA '+(v>=0?'+':'')+v+'°C'};
+$('#lf').oninput=$('#isa').oninput=sync;
+$('#swap').onclick=()=>{via.reverse();vias();const a=$('#dep').value;$('#dep').value=$('#dest').value;$('#dest').value=a;run()};
+$('#presets').onclick=e=>{const p=PRESETS[e.target.dataset.i];if(!p)return;
+ via=(p.via||[]).map(code);vias();
+ Object.entries({dep:p.dep,dest:p.dest,alt:p.alt,ac:p.ac,fl:p.fl,lf:p.lf,wd:p.wd,ws:p.ws}).forEach(([k,v])=>$('#'+k).value=v);sync();run()};
+let R,ctx,raf,via=[];
+const IDS=['dep','dest','alt','ac','fl','etd','lf','cargo','tx','wd','ws','isa','rt','ct','ex'];
+function vias(){$('#vias').innerHTML=via.length?via.map((v,i)=>`<button type="button" class="chip" data-v="${i}" title="Remove waypoint">${v.icao||v.name} ✕</button>`).join('')+'<button type="button" class="chip" data-v="all">Clear all</button>':''}
+$('#vias').onclick=e=>{const i=e.target.dataset.v;if(i===undefined)return;i==='all'?via=[]:via.splice(+i,1);vias();run()};
+function parseVia(t){t=t.trim();const a=code(t);if(a)return a;const m=t.match(/^(-?\d+(?:\.\d+)?)\s*[\/,; ]\s*(-?\d+(?:\.\d+)?)$/);return m&&Math.abs(+m[1])<=85&&Math.abs(+m[2])<=180?{name:(+m[1]).toFixed(1)+'/'+(+m[2]).toFixed(1),lat:+m[1],lon:+m[2]}:null}
+function addVia(p){const d=code($('#dep').value),e=code($('#dest').value);if(!d||!e){via.push(p);return}const f=[d,...via,e];let bi=0,bc=1e9;
+ for(let i=0;i<f.length-1;i++){const c=FP.dist(f[i],p)+FP.dist(p,f[i+1])-FP.dist(f[i],f[i+1]);if(c<bc){bc=c;bi=i}}via.splice(bi,0,p)}
+$('#viaadd').onclick=()=>{const p=parseVia($('#viain').value);if(!p){$('#err').textContent='Waypoint not recognised. Use an airport code or latitude/longitude such as 45.5/20.1.';return}addVia(p);$('#viain').value='';$('#err').textContent='';vias();run()};
+$('#viain').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('#viaadd').click()}};
+function save(){const q=new URLSearchParams();IDS.forEach(i=>q.set(i,$('#'+i).value));q.set('via',via.map(v=>v.icao||v.lat.toFixed(3)+'/'+v.lon.toFixed(3)).join(';'));history.replaceState(null,'','#'+q)}
+function load(){const q=new URLSearchParams(location.hash.slice(1));if(!q.has('dep'))return;IDS.forEach(i=>{if(q.has(i))$('#'+i).value=q.get(i)});via=(q.get('via')||'').split(';').filter(Boolean).map(parseVia).filter(Boolean);vias();sync()}
+function read(){
+ const dep=code($('#dep').value),dest=code($('#dest').value),av=$('#alt').value.trim(),altA=av?code(av):null;
+ if(!dep)return{err:'Departure airport not found. Pick a code from the suggestions.'};
+ if(!dest)return{err:'Destination airport not found. Pick a code from the suggestions.'};
+ if(av&&!altA)return{err:'Alternate airport not found. Clear the field or pick a listed code.'};
+ if(dep===dest)return{err:'Departure and destination must be different airports.'};
+ const n=(id,lo,hi)=>Math.min(hi,Math.max(lo,+$('#'+id).value||0)),[,rf,term]=ROUTING[$('#rt').value];
+ return{dep,dest,altA,via:[...via],ac:AIRCRAFT.find(a=>a.id===$('#ac').value),fl:n('fl',100,450),lf:n('lf',0,100),cargo:n('cargo',0,1e5),isa:+$('#isa').value,wd:n('wd',0,360),ws:n('ws',0,200),rf,term,cont:+$('#ct').value,taxi:n('tx',0,90),extra:n('ex',0,1e5)}}
+function run(e){if(e)e.preventDefault();const o=read();$('#err').textContent=o.err||'';if(o.err)return;
+ R=FP.plan(o);save();R.etd=($('#etd').value||'08:00').split(':').reduce((h,m)=>h*60+ +m);render();}
+$('#f').onsubmit=run;
+const meter=(l,v,lim,u='kg')=>{const p=v/lim*100;return `<div class="meter ${p>100?'bad':p>95?'warn':''}"><div><b>${l}</b><span>${fmt(v)} / ${fmt(lim)} ${u} (${fmt(p)}%)</span></div><u><i style="width:${Math.min(100,p)}%"></i></u></div>`};
+
+function render(){
+ const r=R,c=r.c,fuelKg=k=>`${fmt(k)} kg`,L=k=>fmt(k/.8);
+ const parts=[['Taxi',c.taxi,'#8a9bb0'],['Trip',c.trip.fuel,'#0b5c8a'],['Contingency',c.cont,'#e0a020'],['Alternate',c.altF,'#2a9d8f'],['Final reserve (30 min)',c.final,'#c2185b'],['Extra',c.extra,'#7b5ea7']].filter(p=>p[1]>0||p[0]==='Trip');
+ const word={go:'Go',caution:'Caution',nogo:'No go'}[r.status];
+ const fixes=[{n:r.dep.icao,d:0,k:'dep'},{n:'Top of climb',d:r.tl.find(p=>p.k==='climb'&&p!==r.tl[0])?.d??0,k:'m'}];
+ const toc=fixes[1].d,tod=r.tl.filter(p=>p.k!=='descent').pop().d,nw=r.o.via.length?0:6,wp=[{n:r.dep.icao,d:0,m:1}];
+ for(let i=1;i<=nw;i++)wp.push({n:'WP'+i,d:r.D*i/(nw+1)});let cum=0;r.legs.slice(0,-1).forEach(l=>{cum+=l.d;wp.push({n:l.b.icao||l.b.name,d:cum*r.D/r.gcd,m:1})});wp.push({n:'Top of climb',d:toc,m:1},{n:'Top of descent',d:tod,m:1},{n:r.dest.icao,d:r.D,m:1});wp.sort((a,b)=>a.d-b.d);
+ const rows=wp.map(w=>{const s=FP.at(r.tl,'d',w.d),p=r.pos(w.d/r.D),m=r.etd+r.o.taxi/2+s.t*60;
+  return `<tr class="${w.m?'mk':''}"><td>${w.n}</td><td>${ll(p)}</td><td>${fmt(w.d)}</td><td>${hm(s.t)}</td><td>${clock(m)}</td><td>${s.alt?'FL'+Math.round(s.alt/100):'Ground'}</td><td>${fmt(c.tow-c.zfw-s.used)}</td></tr>`}).join('');
+ $('#out').innerHTML=`
+ <div class="card verdict ${r.status}"><b>${word}</b><div class="path">${r.dep.icao} to ${r.dest.icao}<small>${r.dep.city} to ${r.dest.city}, ${r.ac.name}, cruise FL${r.fl}</small></div>
+  <div class="acts"><button class="btn" id="copy">Copy briefing</button><button class="btn" id="link">Copy link</button><button class="btn" id="json">Export JSON</button><button class="btn" onclick="print()">Print</button></div></div>
+ <div class="kpis">
+  <div class="card kpi"><span>Route distance</span><b>${fmt(r.D)} NM</b><i>${fmt(r.D*1.852)} km, great circle ${fmt(r.gcd)} NM</i></div>
+  <div class="card kpi"><span>Air time</span><b>${hm(r.air)}</b><i>Block ${hm(r.block)}, arrive ${clock(r.etd+r.block*60)} UTC</i></div>
+  <div class="card kpi"><span>Block fuel</span><b>${fuelKg(c.block)}</b><i>${fmt(c.block*2.20462)} lb, ${L(c.block)} L</i></div>
+  <div class="card kpi"><span>CO₂ emitted</span><b>${fmt(r.co2/1000,1)} t</b><i>${r.pax?fmt(r.co2/r.pax)+' kg per passenger':'No passengers'}</i></div></div>
+ <div class="card"><h3>Route map</h3><svg id="map" class="map" viewBox="0 0 900 480" role="img" aria-label="Great circle route map"></svg>
+  <div class="scrub"><button class="btn" id="play">Fly it</button><input type="range" id="sc" min="0" max="1000" value="0" aria-label="Flight progress"></div>
+  <div class="read" id="rd"></div></div>
+ <div class="card"><h3>Vertical profile</h3><svg id="prof" class="map" viewBox="0 0 900 170" role="img" aria-label="Altitude profile"></svg></div>
+ <div class="card"><h3>Fuel breakdown</h3><div class="bar">${parts.map(p=>`<i style="width:${p[1]/c.block*100}%;background:${p[2]}" title="${p[0]}"></i>`).join('')}</div>
+  <div class="legend">${parts.map(p=>`<div><s style="background:${p[2]}"></s>${p[0]}<em>${fuelKg(p[1])}</em><small>${fmt(p[1]/c.block*100,1)}%</small></div>`).join('')}<div><s style="background:none"></s><b>Block fuel</b><em>${fuelKg(c.block)}</em></div></div></div>
+ <div class="grid2"><div class="card"><h3>Weights and limits</h3>
+  <div class="meter"><div><b>Payload</b><span>${r.pax} passengers, ${fmt(r.payload)} kg total</span></div></div>
+  <div class="meter"><div><b>Zero fuel weight</b><span>${fmt(c.zfw)} kg</span></div></div>
+  ${meter('Takeoff weight',c.tow,r.ac.mtow)}${meter('Landing weight',c.lw,r.ac.mlw)}${meter('Block fuel',c.block,r.ac.fuel)}${meter('Range used',r.D,r.maxRange,'NM')}</div>
+  <div class="card"><h3>Dispatch checks</h3><ul class="checks">${r.checks.map(x=>`<li class="${x.l}">${x.m}</li>`).join('')}</ul></div></div>
+ <div class="card"><h3>Flight conditions</h3><div class="read">
+  <div>Track<b>${fmt(r.crs)}° to ${fmt(r.fin)}°</b></div><div>True airspeed<b>${fmt(r.tas)} kt</b></div><div>Wind component<b>${r.hw>=0?'Head':'Tail'} ${fmt(Math.abs(r.hw))} kt</b></div><div>Ground speed<b>${fmt(r.gs)} kt</b></div><div>Temperature<b>ISA ${r.o.isa>=0?'+':''}${r.o.isa}°C</b></div><div>Alternate<b>${r.altA?r.altA.icao+', '+fmt(r.altD)+' NM':'None'}</b></div></div></div>
+ <div class="card"><h3>Route legs</h3><div class="tw"><table><thead><tr><th>Leg</th><th>Distance NM</th><th>Track</th></tr></thead><tbody>${r.legs.map(l=>`<tr><td>${l.a.icao||l.a.name} to ${l.b.icao||l.b.name}</td><td>${fmt(l.d)}</td><td>${fmt(l.crs)}°</td></tr>`).join('')}</tbody></table></div></div>
+ <div class="card"><h3>Navigation log</h3><div class="tw"><table><thead><tr><th>Fix</th><th>Position</th><th>Dist NM</th><th>Elapsed</th><th>UTC</th><th>Level</th><th>Fuel left kg</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+ map();$('#sc').oninput=()=>scrub(+$('#sc').value/1000);$('#play').onclick=play;
+ $('#copy').onclick=e=>{navigator.clipboard?.writeText(brief());e.target.textContent='Copied'};
+ $('#link').onclick=e=>{navigator.clipboard?.writeText(location.href);e.target.textContent='Copied'};
+ $('#json').onclick=()=>{const{o,tl,...x}=r,b=new Blob([JSON.stringify({dep:r.dep.icao,dest:r.dest.icao,aircraft:r.ac.id,...x,dep:r.dep.icao,dest:r.dest.icao,altA:r.altA?.icao,ac:undefined},(k,v)=>k==='steps'?undefined:v,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`flightplan-${r.dep.icao}-${r.dest.icao}.json`;a.click()};
+ scrub(0)}
+
+function brief(){const r=R,c=r.c;return `FLIGHTPATH BRIEFING (simulation)
+${r.dep.icao} ${r.dep.city} to ${r.dest.icao} ${r.dest.city}${r.o.via.length?', via '+r.o.via.map(v=>v.icao||v.name).join(' '):''}${r.altA?', alternate '+r.altA.icao:''}
+Aircraft ${r.ac.name}, cruise FL${r.fl}, track ${fmt(r.crs)}°
+Distance ${fmt(r.D)} NM (${fmt(r.D*1.852)} km), air time ${hm(r.air)}, block ${hm(r.block)}
+Wind ${r.hw>=0?'head':'tail'} ${fmt(Math.abs(r.hw))} kt, ISA ${r.o.isa>=0?'+':''}${r.o.isa}
+Fuel kg: taxi ${fmt(c.taxi)}, trip ${fmt(c.trip.fuel)}, contingency ${fmt(c.cont)}, alternate ${fmt(c.altF)}, final reserve ${fmt(c.final)}, extra ${fmt(c.extra)}
+BLOCK FUEL ${fmt(c.block)} kg
+Weights kg: ZFW ${fmt(c.zfw)}, TOW ${fmt(c.tow)}/${fmt(r.ac.mtow)}, LW ${fmt(c.lw)}/${fmt(r.ac.mlw)}
+Status: ${r.status.toUpperCase()}`}
+
+// ---- map and profile ----
+function map(){
+ const r=R,W=900,H=480,svg=$('#map'),near=(l,ref)=>{while(l-ref>180)l-=360;while(l-ref<-180)l+=360;return l};
+ const pts=[];let prev=r.dep.lon;for(let i=0;i<=80;i++){const p=r.pos(i/80);p.lon=near(p.lon,prev);prev=p.lon;pts.push(p)}
+ const all=[...pts];if(r.altA)all.push({lat:r.altA.lat,lon:near(r.altA.lon,r.dest.lon)});
+ const la=all.map(p=>p.lat),lo=all.map(p=>p.lon),cy=(Math.min(...la)+Math.max(...la))/2,cx=(Math.min(...lo)+Math.max(...lo))/2;
+ const sl=Math.max(Math.max(...lo)-Math.min(...lo),6),sa=Math.max(Math.max(...la)-Math.min(...la),4),k=Math.cos(cy*Math.PI/180),s=Math.min(W/(sl*k*1.45),H/(sa*1.6));
+ const X2=l=>W/2+(l-cx)*k*s,X=l=>W/2+(near(l,cx)-cx)*k*s,Y=l=>H/2-(l-cy)*s,hl=W/2/(k*s),ha=H/2/s,g=sl>120?30:sl>60?15:sl>30?10:sl>14?5:2;
+ let o='<defs><linearGradient id="rg"><stop offset="0" stop-color="var(--acc)"/><stop offset="1" stop-color="var(--route)"/></linearGradient></defs>';
+ for(const poly of LAND)for(const off of[-360,0,360]){let d='';for(let i=0;i<poly.length;i+=2)d+=(i?'L':'M')+X2(poly[i+1]+off).toFixed(1)+','+Y(poly[i]).toFixed(1);o+=`<path d="${d}Z" fill="var(--land)" stroke="var(--coast)" stroke-width="1" stroke-linejoin="round"/>`}
+ for(let l=Math.ceil((cx-hl)/g)*g;l<cx+hl;l+=g){const x=X(l);o+=`<line x1="${x}" x2="${x}" y1="0" y2="${H}" stroke="var(--line)"/><text x="${x+3}" y="${H-6}" font-size="11" fill="var(--mut)">${Math.abs(((l+540)%360)-180)}°${((l+540)%360)-180<0?'W':'E'}</text>`}
+ for(let a=Math.ceil((cy-ha)/g)*g;a<cy+ha;a+=g){const y=Y(a);o+=`<line y1="${y}" y2="${y}" x1="0" x2="${W}" stroke="var(--line)"/><text x="4" y="${y-3}" font-size="11" fill="var(--mut)">${Math.abs(a)}°${a<0?'S':'N'}</text>`}
+ const key=[r.dep,r.dest,r.altA];
+ for(const a of AIRPORTS){if(key.includes(a))continue;const x=X(a.lon),y=Y(a.lat);if(x>10&&x<W-10&&y>10&&y<H-10)o+=`<circle cx="${x}" cy="${y}" r="2.6" fill="var(--mut)" opacity=".6"/><text x="${x+5}" y="${y+4}" font-size="10" fill="var(--mut)">${a.iata}</text>`}
+ const d=pts.map((p,i)=>(i?'L':'M')+X(p.lon).toFixed(1)+','+Y(p.lat).toFixed(1)).join('');
+ if(r.altA)o+=`<line x1="${X(r.dest.lon)}" y1="${Y(r.dest.lat)}" x2="${X(r.altA.lon)}" y2="${Y(r.altA.lat)}" stroke="var(--mut)" stroke-dasharray="2 4" stroke-width="1.5"/>`;
+ o+=`<path d="${d}" fill="none" stroke="var(--route)" stroke-opacity=".18" stroke-width="9" stroke-linecap="round"/><path d="${d}" fill="none" stroke="url(#rg)" stroke-width="2.5" stroke-dasharray="7 5"/>`;
+ const lab=(a,c,dy)=>`<circle cx="${X(a.lon)}" cy="${Y(a.lat)}" r="6" fill="var(--card)" stroke="${c}" stroke-width="3"/><text x="${X(a.lon)}" y="${Y(a.lat)+dy}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)" stroke="var(--sea)" stroke-width="3" paint-order="stroke">${a.icao}</text>`;
+ o+=lab(r.dep,'var(--acc)',-12)+lab(r.dest,'var(--route)',-12)+(r.altA?lab(r.altA,'var(--mut)',18):'');
+ r.o.via.forEach(v=>{const x=X(v.lon),y=Y(v.lat);o+=`<rect x="${x-4.5}" y="${y-4.5}" width="9" height="9" transform="rotate(45 ${x} ${y})" fill="var(--card)" stroke="var(--route)" stroke-width="2.5"/><text x="${x}" y="${y-11}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)" stroke="var(--sea)" stroke-width="3" paint-order="stroke">${v.icao||v.name}</text>`});
+ o+='<g id="pl"><path d="M0-11L3-3 12 3V6L3 4 2 9 5 11V12L0 11-5 12V11L-2 9-3 4-12 6V3L-3-3Z" fill="var(--ink)" stroke="var(--card)" stroke-width="1.5"/></g>';
+ svg.innerHTML=o;svg.style.cursor='crosshair';
+ svg.onclick=e=>{const b=svg.getBoundingClientRect(),x=(e.clientX-b.left)/b.width*W,y=(e.clientY-b.top)/b.height*H,lat=cy-(y-H/2)/s;if(Math.abs(lat)>85)return;const lon=((cx+(x-W/2)/(k*s)+540)%360+360)%360-180;addVia({name:lat.toFixed(1)+'/'+lon.toFixed(1),lat,lon});vias();run()};const pos=f=>{const p=r.pos(f);return[X(p.lon),Y(p.lat)]};
+ // profile
+ const PW=900,PH=170,px=d=>40+d/r.tl[r.tl.length-1].d*(PW-60),py=a=>PH-28-a/(r.fl*100)*(PH-56);
+ const poly=r.tl.map(p=>`${px(p.d).toFixed(1)},${py(p.alt).toFixed(1)}`).join(' ');
+ $('#prof').innerHTML=`<defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--acc)" stop-opacity=".5"/><stop offset="1" stop-color="var(--acc)" stop-opacity=".05"/></linearGradient></defs>
+ <polygon points="${px(0)},${py(0)} ${poly} ${px(r.tl.at(-1).d)},${py(0)}" fill="url(#pg)" stroke="var(--acc)" stroke-width="2"/>
+ <text x="4" y="${py(r.fl*100)+4}" font-size="11" fill="var(--mut)">FL${r.fl}</text><text x="4" y="${py(0)+4}" font-size="11" fill="var(--mut)">0</text>
+ <text x="40" y="${PH-6}" font-size="11" fill="var(--mut)">0 NM</text><text x="${PW-20}" y="${PH-6}" text-anchor="end" font-size="11" fill="var(--mut)">${fmt(r.D)} NM</text><circle id="pm" r="6" fill="var(--route)" stroke="var(--card)" stroke-width="2"/>`;
+ ctx={pos,px,py,T:r.tl.at(-1).t}}
+function scrub(p){const r=R,s=FP.at(r.tl,'t',p*ctx.T),f=Math.min(1,s.d/r.tl.at(-1).d),[x,y]=ctx.pos(f),[x2,y2]=ctx.pos(Math.min(1,f+.004)),[x1,y1]=ctx.pos(Math.max(0,f-.004));
+ $('#pl').setAttribute('transform',`translate(${x},${y}) rotate(${Math.atan2(x2-x1,-(y2-y1))*180/Math.PI})`);
+ $('#pm').setAttribute('cx',ctx.px(s.d));$('#pm').setAttribute('cy',ctx.py(s.alt));$('#sc').value=p*1000;
+ const ph=s.alt<1&&p<.5?'On ground':s.alt<1?'Landed':s.k;
+ $('#rd').innerHTML=`<div>Phase<b>${ph[0].toUpperCase()+ph.slice(1)}</b></div><div>Elapsed<b>${hm(s.t)}</b></div><div>Clock (UTC)<b>${clock(r.etd+r.o.taxi/2*60/60+s.t*60)}</b></div><div>Altitude<b>${s.alt<50?'Ground':'FL'+Math.round(s.alt/100)}</b></div><div>Distance to go<b>${fmt(Math.max(0,r.tl.at(-1).d-s.d))} NM</b></div><div>Fuel on board<b>${fmt(r.c.tow-r.c.zfw-s.used)} kg</b></div>`}
+function play(){cancelAnimationFrame(raf);const b=$('#play');if(b.dataset.on){delete b.dataset.on;b.textContent='Fly it';return}
+ b.dataset.on=1;b.textContent='Pause';let p=+$('#sc').value/1000;if(p>=.999)p=0;let t0=performance.now()-p*14000;
+ const step=t=>{p=Math.min(1,(t-t0)/14000);scrub(p);if(p<1&&b.dataset.on)raf=requestAnimationFrame(step);else{delete b.dataset.on;b.textContent='Fly it'}};raf=requestAnimationFrame(step)}
+load();sync();run();
+})();
+
+</script>
+</body></html>
