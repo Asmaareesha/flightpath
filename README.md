@@ -2,6 +2,13 @@
 
 A flight planning simulator that runs entirely in your browser. Choose departure, destination, optional alternate and via waypoints, aircraft and conditions. It returns route, distance, time, a full fuel breakdown, weight and range checks, a navigation log and an animated map.
 
+## About this project
+
+I wanted to understand how airlines plan flights, so I built a simulator that
+calculates route, distance, time and fuel. I then learned the physics behind fuel
+and range, compared the results with real flights, found where the model was off,
+and improved it. See "Known limitations and improvements" below.
+
 **Simulation only. Never use it for real navigation or dispatch.**
 
 ## Features
